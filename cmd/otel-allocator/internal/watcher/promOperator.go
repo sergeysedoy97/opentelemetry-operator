@@ -62,8 +62,12 @@ func NewPrometheusCRWatcher(
 		return nil, err
 	}
 
-	// we want to use endpointslices by default
-	serviceDiscoveryRole := monitoringv1.ServiceDiscoveryRole("EndpointSlice")
+	sdr := os.Getenv("LEGACY_SERVICE_DISCOVERY_ROLE")
+	if sdr == "" {
+		// we want to use endpointslices by default
+		sdr = "EndpointSlice"
+	}
+	serviceDiscoveryRole := monitoringv1.ServiceDiscoveryRole(sdr)
 
 	// TODO: We should make these durations configurable
 	prom := &monitoringv1.Prometheus{
@@ -88,7 +92,12 @@ func NewPrometheusCRWatcher(
 		},
 	}
 
-	generator, err := prometheus.NewConfigGenerator(promLogger, prom, prometheus.WithEndpointSliceSupport(), prometheus.WithInlineTLSConfig())
+	var opts []prometheus.ConfigGeneratorOption
+	if sdr == "EndpointSlice" {
+		opts = append(opts, prometheus.WithEndpointSliceSupport(), prometheus.WithInlineTLSConfig())
+	}
+
+	generator, err := prometheus.NewConfigGenerator(promLogger, prom, opts...)
 
 	if err != nil {
 		return nil, err
